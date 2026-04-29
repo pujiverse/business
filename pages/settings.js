@@ -1,6 +1,6 @@
 // Settings — connection info, theme, bulk CSV import, JSON backup/restore.
 
-import { db, getCreds, setCreds, clearCreds, testConnection } from '../db.js';
+import { db, getCreds, setCreds, clearCreds, testConnection, isConfigSourced } from '../db.js';
 import { mount, esc, toast, openModal, confirm } from '../ui.js';
 
 const TABLES = ['customers', 'customer_transactions', 'expenses', 'loans', 'loan_transactions'];
@@ -15,22 +15,37 @@ const TEMPLATES = {
 
 export function renderSettings(target) {
   const creds = getCreds() || {};
+  const source = isConfigSourced() ? 'config-file' : (creds.url ? 'browser' : 'none');
+  const sourceBadge = {
+    'config-file': '<span class="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200">credentials/config.js</span>',
+    'browser':     '<span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200">browser storage</span>',
+    'none':        '<span class="px-2 py-1 text-xs rounded-full bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200">not set</span>',
+  }[source];
+
   mount(target, `
     <h1 class="text-3xl font-bold mb-6">Settings</h1>
 
     <div class="space-y-6">
       <!-- Connection -->
       <div class="card">
-        <h2 class="text-xl font-semibold mb-3">Database connection</h2>
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 class="text-xl font-semibold">Database connection</h2>
+          <span class="text-sm">Source: ${sourceBadge}</span>
+        </div>
         <div class="text-sm text-slate-500 mb-2">Project URL</div>
         <div class="flex gap-2 mb-3">
           <input class="field" readonly value="${esc(creds.url || 'Not configured')}">
           <button id="copy-url" class="btn btn-ghost border border-slate-300 dark:border-slate-600">Copy</button>
         </div>
         <div class="flex flex-wrap gap-2">
-          <button id="reconnect" class="btn btn-ghost border border-slate-300 dark:border-slate-600">Change connection</button>
+          <button id="reconnect"  class="btn btn-ghost border border-slate-300 dark:border-slate-600">Change connection</button>
+          <button id="dl-config"  class="btn btn-ghost border border-slate-300 dark:border-slate-600" ${creds.url ? '' : 'disabled'}>⬇ Download config.js</button>
           <button id="disconnect" class="btn btn-danger">Disconnect this device</button>
         </div>
+        <p class="text-xs text-slate-500 mt-3">
+          Drop the downloaded <code>config.js</code> into the <code>credentials/</code> folder
+          on any device to make this app auto-connect there too — no more wizard.
+        </p>
       </div>
 
       <!-- Bulk import -->
@@ -79,6 +94,16 @@ export function renderSettings(target) {
     toast('Copied');
   };
   $('#reconnect').onclick = () => openReconnect(target);
+  $('#dl-config').onclick = () => {
+    if (!creds.url) return;
+    const body =
+      `// BizManager Lite — credentials file (LOCAL ONLY).\n` +
+      `// Save this file as: credentials/config.js\n` +
+      `// It is gitignored, so it will not reach GitHub.\n\n` +
+      `window.BIZMGR_CONFIG = ${JSON.stringify({ url: creds.url, key: creds.key }, null, 2)};\n`;
+    download(body, 'config.js', 'text/javascript');
+    toast('config.js downloaded — drop it into credentials/');
+  };
   $('#disconnect').onclick = async () => {
     if (!await confirm('Forget the saved Supabase URL and key on this device?')) return;
     clearCreds();
