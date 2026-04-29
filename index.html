@@ -31,6 +31,14 @@
   </script>
 
   <link rel="stylesheet" href="style.css" />
+
+  <!--
+    Optional: load credentials from credentials/config.js.
+    If the file is missing the browser logs a 404 but the app still works
+    (the setup wizard appears instead). Loading this BEFORE app.js means
+    window.BIZMGR_CONFIG is ready when the modules read it.
+  -->
+  <script src="credentials/config.js" onerror="window.__BIZMGR_NO_CONFIG=true"></script>
 </head>
 <body class="bg-slate-100 text-slate-900 dark:bg-slate-900 dark:text-slate-100 min-h-screen">
 
