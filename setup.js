@@ -4,12 +4,13 @@
 //   2. Form (URL + anon key) with a Test Connection button
 //   3. Saved → click to enter the app
 
-import { setCreds, testConnection, getCreds } from './db.js';
+import { setCreds, testConnection, getCreds, isConfigSourced } from './db.js';
 import { mount, esc, toast } from './ui.js';
 
 export function renderSetup(target, { onDone }) {
   // Pre-fill from any saved values so users can easily edit
   const existing = getCreds() || { url: '', key: '' };
+  const fromConfig = isConfigSourced();
 
   mount(target, `
     <div class="min-h-screen flex items-center justify-center p-4">
@@ -18,11 +19,17 @@ export function renderSetup(target, { onDone }) {
           <div class="w-10 h-10 rounded-lg bg-primary text-white flex items-center justify-center font-bold text-xl">B</div>
           <h1 class="text-2xl font-bold">Connect your database</h1>
         </div>
-        <p class="text-sm text-slate-600 dark:text-slate-300 mb-6">
+        <p class="text-sm text-slate-600 dark:text-slate-300 mb-4">
           BizManager Lite stores your business data in <b>your own</b> free Supabase project.
           You only need to do this once on each device.
           <a href="SETUP_GUIDE.md" target="_blank" class="text-primary underline">Step-by-step guide</a>.
         </p>
+
+        ${fromConfig ? `
+          <div class="mb-4 p-3 rounded-lg text-sm bg-blue-50 text-blue-900 dark:bg-blue-900/30 dark:text-blue-100">
+            ✨ Values loaded from <code>credentials/config.js</code>. Click
+            <b>Save &amp; continue</b> to use them, or edit below to override.
+          </div>` : ''}
 
         <form id="setup-form" class="space-y-4">
           <div>
