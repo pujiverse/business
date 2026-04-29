@@ -1,8 +1,26 @@
 # Setup guide
 
-Goal: by the end you have **two values** to paste into the app — a *Project URL* and an *anon key*. They come from a free Supabase project that holds your data.
+Goal: by the end you have **two values** to paste into the app — a *Project URL* and a *publishable key* (Supabase used to call this the "anon" key; both names mean the same thing for a browser app). They come from a free Supabase project that holds your data.
 
 You only do this **once per device**. After that, the app remembers and you go straight to the dashboard.
+
+> **Heads-up.** You may have seen Supabase mention CLI commands like
+> `supabase login`, `supabase init`, or `supabase link --project-ref …`.
+> **You do not need any of those for this app.** Those are for managing
+> migrations from a developer's laptop. BizManager Lite talks to Supabase
+> over HTTPS using only the URL and the publishable key.
+
+## TL;DR — fastest possible path
+
+If you don't want to read the whole guide, this is the shortest route:
+
+1. Make a free project at [supabase.com](https://supabase.com).
+2. SQL Editor → New query → paste `supabase-schema.sql` → Run.
+3. Project Settings → Data API → copy *Project URL* and the *publishable* key.
+4. Open `credentials/config.js` in this folder and paste the two values in.
+5. Open `index.html`. You should land straight on the dashboard.
+
+If anything fails, fall back to the long version below.
 
 ---
 
@@ -38,14 +56,38 @@ You should see *Success. No rows returned*. If you see a red error, scroll up �
 > Why is it OK to put this key in the browser? Because the schema we ran turned on Row Level Security with a policy that lets the anon key read and write the five tables. Nothing else is exposed.
 > If you ever want stricter rules (e.g. multi-user with login), edit the policies at the bottom of `supabase-schema.sql` to use `auth.uid()`.
 
-## Part 4 — Paste into the app
+## Part 4 — Tell the app your two values
 
-1. Open the app (open `index.html` locally, or visit the GitHub Pages URL).
+You have two ways to do this. Pick whichever you like.
+
+### Option A — Edit `credentials/config.js` (no wizard at all)
+
+1. In this project folder, open `credentials/config.js`.
+2. Replace the URL and key strings with your values:
+   ```js
+   window.BIZMGR_CONFIG = {
+     url: 'https://YOUR-PROJECT-REF.supabase.co',
+     key: 'sb_publishable_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+   };
+   ```
+3. Save and open `index.html`. The app skips the wizard and goes straight to Home.
+
+The folder `credentials/` is in `.gitignore`, so even if you push the project to GitHub, your file stays on your computer. If something goes wrong (e.g. wrong key), the home page may show errors — open Settings → *Change connection* to fix.
+
+### Option B — Use the in-browser wizard
+
+1. Open the app.
 2. The wizard greets you with *Connect your database*.
 3. Paste the **Project URL** in the first field.
-4. Paste the **anon key** in the second field. Tick **Show key** to double-check.
-5. Click **Test connection**. You should see a green banner: *"Connected. All five tables are reachable."*
+4. Paste the **publishable key** in the second field. Tick **Show key** to double-check.
+5. Click **Test connection**. You should see *"Connected. All five tables are reachable."*
 6. Click **Save & continue**.
+
+The browser stores the values in `localStorage` for that domain — same effect as Option A, just stored in a different place.
+
+### Option C — Set up once, share to other devices
+
+Use Option B on the first device to confirm it works, then go to **Settings → Download config.js**. Drop the downloaded file into `credentials/` on your other computer, phone PWA, USB-stick copy, etc. They'll all auto-connect.
 
 You'll land on the dashboard with zeros everywhere. Add a customer or an expense to see things light up.
 
