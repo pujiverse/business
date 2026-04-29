@@ -7,14 +7,37 @@ const STORE_KEY = 'bizmgr.creds.v1';
 
 let client = null;
 
-/** Read saved credentials (or null). */
+/** Read saved credentials (or null).
+ *  Priority:
+ *    1. localStorage  — set by the wizard / Settings page
+ *    2. window.BIZMGR_CONFIG — provided by credentials/config.js if the user
+ *       wants the app to auto-connect on startup with no wizard.
+ */
 export function getCreds() {
+  // 1. From localStorage
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.url && parsed.key) return { ...parsed, source: 'browser' };
+    }
   } catch {
-    return null;
+    // ignore corrupt storage and fall through
   }
+
+  // 2. From credentials/config.js (loaded as a regular <script> in index.html)
+  if (typeof window !== 'undefined' && window.BIZMGR_CONFIG) {
+    const c = window.BIZMGR_CONFIG;
+    if (c.url && c.key) return { url: c.url, key: c.key, source: 'config-file' };
+  }
+
+  return null;
+}
+
+/** True if the app picked up creds from credentials/config.js this session. */
+export function isConfigSourced() {
+  const c = getCreds();
+  return !!(c && c.source === 'config-file');
 }
 
 /** Save creds + (re)build the client. */
