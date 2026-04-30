@@ -40,12 +40,31 @@ See **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** for screenshots of where to find each
 
 ## Deploy to GitHub Pages
 
-1. Create a new public GitHub repository (e.g. `biz-manager-lite`).
-2. Upload every file from this folder to the repo (drag-and-drop on github.com works).
-3. Repo ▸ **Settings ▸ Pages** ▸ Source: `Deploy from a branch` ▸ Branch: `main` ▸ `/` (root) ▸ **Save**.
-4. Wait ~30 seconds. GitHub gives you a URL like `https://yourname.github.io/biz-manager-lite/`. Open it.
+Two paths — pick whichever you like.
 
-That URL is now your app. Share it with yourself, install it on your phone or desktop (see below).
+### Easy path (recommended) — one file
+
+`bundle.html` in this folder is the entire app inlined into a single HTML file. No JS modules to upload, no folder structure to mess up, no chance of a missing import causing a blank "Loading…" screen.
+
+1. Create a new public GitHub repository (e.g. `business`).
+2. Upload **only `bundle.html`** to the repo (drag-and-drop on github.com works).
+3. Rename it to `index.html` directly on GitHub (✏️ icon → change name).
+4. Repo ▸ **Settings ▸ Pages** ▸ Source: `Deploy from a branch` ▸ Branch: `main` ▸ `/` (root) ▸ **Save**.
+5. Wait ~30 seconds, open `https://yourname.github.io/<repo>/`. The setup wizard appears.
+
+To rebuild `bundle.html` after editing the source files, run `./build-bundle.sh`.
+
+### Modular path — every file as-is
+
+1. Upload every file from this folder to the repo, **preserving the `pages/` subfolder**.
+2. Pages → Source → Branch: main, root, Save.
+3. Same URL.
+
+This way is friendlier for editing, but make sure `pages/` and all eight `.js` files inside it land in the right place — a single missing module will leave the page stuck on "Loading…".
+
+### Stuck on "Loading…" anyway?
+
+Open the deployed URL, hit <kbd>F12</kbd>, click **Console**. The first red line tells you exactly which file is missing or which import broke. Share the error and it's a one-minute fix. Switching to `bundle.html` will resolve almost any module-loading issue.
 
 ## Install as a desktop / phone app
 
