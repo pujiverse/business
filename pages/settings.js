@@ -3,7 +3,12 @@
 import { db, getCreds, setCreds, clearCreds, testConnection, isConfigSourced } from '../db.js';
 import { mount, esc, toast, openModal, confirm } from '../ui.js';
 
-const TABLES = ['customers', 'customer_transactions', 'expenses', 'loans', 'loan_transactions'];
+const TABLES = [
+  'customers', 'customer_transactions',
+  'expenses',
+  'loans', 'loan_transactions',
+  'chits', 'chit_members', 'chit_transactions',
+];
 
 const TEMPLATES = {
   customers:             ['name', 'phone', 'address', 'status'],
@@ -11,9 +16,14 @@ const TEMPLATES = {
   expenses:              ['expense_date', 'description', 'category', 'amount', 'type'],
   loans:                 ['name', 'principal', 'interest_rate', 'duration_months', 'type', 'status'],
   loan_transactions:     ['loan_id', 'date', 'amount', 'description', 'type'],
+  chits:                 ['name', 'total_value', 'members_count', 'duration_months', 'status'],
+  chit_members:          ['chit_id', 'name', 'phone', 'email', 'address', 'lottery_status'],
+  chit_transactions:     ['member_id', 'date', 'amount', 'description', 'type'],
 };
 
-export function renderSettings(target) {
+export function renderSettings(target, ctx) {
+  const me = ctx?.me;
+  const isAdmin = me?.profile?.role === 'admin';
   const creds = getCreds() || {};
   const source = isConfigSourced() ? 'config-file' : (creds.url ? 'browser' : 'none');
   const sourceBadge = {
@@ -65,6 +75,27 @@ export function renderSettings(target) {
         </div>
         <pre id="imp-log" class="mt-3 text-xs whitespace-pre-wrap text-slate-500"></pre>
       </div>
+
+      <!-- My account -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-3">My account</h2>
+        <div class="text-sm text-slate-500">Signed in as</div>
+        <div class="font-medium mb-3">${esc(me?.profile?.email || me?.user?.email || '')}</div>
+        <div class="text-sm text-slate-500">Role</div>
+        <div class="font-medium">
+          ${isAdmin
+            ? '<span class="px-2 py-0.5 text-xs rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200 font-semibold">ADMIN</span> — can read &amp; edit every row in this database.'
+            : '<span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200 font-semibold">customer</span> — you only see and edit your own rows.'}
+        </div>
+      </div>
+
+      ${isAdmin ? `
+      <!-- Admin: manage users -->
+      <div class="card">
+        <h2 class="text-xl font-semibold mb-1">Users (admin)</h2>
+        <p class="text-sm text-slate-500 mb-3">Promote a customer to admin or demote them. You cannot change your own role here.</p>
+        <div id="users-list" class="text-sm text-slate-500">Loading…</div>
+      </div>` : ''}
 
       <!-- Backup -->
       <div class="card">
@@ -158,6 +189,9 @@ export function renderSettings(target) {
     log.textContent += `\n✓ Backup downloaded.`;
   };
 
+  // ----- admin: list / promote / demote users -----
+  if (isAdmin) loadUsers(target, me);
+
   // ----- restore -----
   $('#restore').onchange = async (e) => {
     const file = e.target.files[0];
@@ -185,6 +219,54 @@ export function renderSettings(target) {
       e.target.value = '';
     }
   };
+}
+
+async function loadUsers(target, me) {
+  const list = target.querySelector('#users-list');
+  if (!list) return;
+  const supabase = db();
+  const { data: users = [], error } = await supabase
+    .from('profiles')
+    .select('id, email, full_name, role, created_at')
+    .order('created_at');
+  if (error) { list.textContent = error.message; return; }
+  list.innerHTML = `
+    <table class="tbl">
+      <thead><tr><th>Email</th><th>Name</th><th>Role</th><th></th></tr></thead>
+      <tbody>
+        ${users.map((u) => `
+          <tr>
+            <td>${esc(u.email)}</td>
+            <td>${esc(u.full_name || '—')}</td>
+            <td>
+              <span class="px-2 py-1 text-xs rounded-full
+                ${u.role === 'admin'
+                  ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
+                  : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-200'}">${esc(u.role)}</span>
+            </td>
+            <td class="text-right">
+              ${u.id === me.user.id
+                ? '<span class="text-xs text-slate-500">you</span>'
+                : `<button class="btn btn-ghost ${u.role === 'admin' ? 'text-blue-600' : 'text-amber-600'}"
+                        data-toggle-role="${u.id}" data-current="${u.role}">
+                     ${u.role === 'admin' ? 'Demote to customer' : 'Promote to admin'}
+                   </button>`}
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+  list.querySelectorAll('[data-toggle-role]').forEach((b) => {
+    b.onclick = async () => {
+      const newRole = b.dataset.current === 'admin' ? 'customer' : 'admin';
+      if (!await confirm(`Change this user's role to "${newRole}"?`)) return;
+      const { error } = await db().from('profiles')
+        .update({ role: newRole })
+        .eq('id', b.dataset.toggleRole);
+      if (error) return toast(error.message, 'error');
+      toast('Role updated');
+      loadUsers(target, me);
+    };
+  });
 }
 
 function openReconnect(target) {
@@ -269,6 +351,9 @@ function coerceRow(table, row) {
     expenses: ['amount'],
     loans: ['principal', 'interest_rate', 'duration_months'],
     loan_transactions: ['loan_id', 'amount'],
+    chits: ['total_value', 'members_count', 'duration_months'],
+    chit_members: ['chit_id'],
+    chit_transactions: ['member_id', 'amount'],
   };
   const out = { ...row };
   (numeric[table] || []).forEach((k) => {
