@@ -23,7 +23,8 @@ async function draw(target, search = '') {
   const expense = rows.filter((r) => r.type === 'Expense').reduce((s, r) => s + Number(r.amount), 0);
 
   mount(target, `
-    <h1 class="text-3xl font-bold mb-6">Expenses &amp; Income</h1>
+    <h1 class="text-3xl font-bold mb-1">Household Expenses</h1>
+    <p class="text-slate-500 mb-6">Personal income and spending — kept separate from the business books.</p>
 
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
       <div class="card"><div class="text-sm text-slate-500">Total income</div><div class="text-2xl font-bold text-green-600">${inr(income)}</div></div>
