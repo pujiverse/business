@@ -9,13 +9,33 @@ export async function renderReports(target) {
 
   const [{ data: customers = [] }, { data: custTx = [] },
          { data: expenses = [] },  { data: loans = [] },
-         { data: loanTx = [] }] = await Promise.all([
+         { data: loanTx = [] },    { data: chits = [] },
+         { data: chitMembers = [] }, { data: chitTx = [] }] = await Promise.all([
     supabase.from('customers').select('*'),
     supabase.from('customer_transactions').select('*'),
     supabase.from('expenses').select('*'),
     supabase.from('loans').select('*'),
     supabase.from('loan_transactions').select('*'),
+    supabase.from('chits').select('*'),
+    supabase.from('chit_members').select('id, chit_id'),
+    supabase.from('chit_transactions').select('*'),
   ]);
+
+  // Per-chit roll-up
+  const memberById = Object.fromEntries(chitMembers.map((m) => [m.id, m]));
+  const chitStats = {};
+  for (const t of chitTx) {
+    const m = memberById[t.member_id];
+    if (!m) continue;
+    chitStats[m.chit_id] ??= { collected: 0, given: 0 };
+    if (t.type === 'Given')    chitStats[m.chit_id].collected += Number(t.amount);
+    if (t.type === 'Received') chitStats[m.chit_id].given     += Number(t.amount);
+  }
+  const chitRows = chits.map((c) => ({
+    name: c.name, status: c.status,
+    collected: chitStats[c.id]?.collected || 0,
+    given:     chitStats[c.id]?.given     || 0,
+  }));
 
   // Group expenses + income by YYYY-MM
   const monthly = {};
@@ -47,7 +67,7 @@ export async function renderReports(target) {
 
   mount(target, `
     <div class="flex justify-between items-start flex-wrap gap-3 mb-6">
-      <h1 class="text-3xl font-bold">Reports</h1>
+      <h1 class="text-3xl font-bold">Summary Report</h1>
       <div class="flex gap-2">
         <button id="print" class="btn btn-ghost border border-slate-300 dark:border-slate-600">🖨 Print</button>
         <button id="csv"   class="btn btn-primary">⬇ Download CSV</button>
@@ -83,6 +103,23 @@ export async function renderReports(target) {
           : `<table class="tbl"><thead><tr><th>Customer</th><th>Balance</th></tr></thead>
               <tbody>${customerStats.map((c) => `
                 <tr><td>${esc(c.name)}</td><td class="font-semibold">${inr(c.balance)}</td></tr>`).join('')}
+              </tbody></table>`}
+      </div>
+
+      <div class="card">
+        <h2 class="text-lg font-semibold mb-3">Chits</h2>
+        ${chitRows.length === 0
+          ? `<p class="text-sm text-slate-500">No chits yet.</p>`
+          : `<table class="tbl"><thead><tr>
+                <th>Name</th><th>Collected</th><th>Given</th><th>Savings</th>
+              </tr></thead>
+              <tbody>${chitRows.map((c) => `
+                <tr>
+                  <td>${esc(c.name)}</td>
+                  <td class="text-green-600">${inr(c.collected)}</td>
+                  <td class="text-red-600">${inr(c.given)}</td>
+                  <td class="font-semibold">${inr(c.collected - c.given)}</td>
+                </tr>`).join('')}
               </tbody></table>`}
       </div>
 
