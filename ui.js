@@ -81,7 +81,6 @@ export function openModal({ title, bodyHtml, onMount }) {
   return { close };
 }
 
-
 /** Friendly confirm dialog (replacement for window.confirm). */
 export function confirm(message) {
   return new Promise((resolve) => {
