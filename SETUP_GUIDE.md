@@ -18,9 +18,23 @@ If you don't want to read the whole guide, this is the shortest route:
 2. SQL Editor → New query → paste `supabase-schema.sql` → Run.
 3. Project Settings → Data API → copy *Project URL* and the *publishable* key.
 4. Open `credentials/config.js` in this folder and paste the two values in.
-5. Open `index.html`. You should land straight on the dashboard.
+5. Open `index.html`. The login screen appears.
+6. Click **Sign up**, create an account with your email + a password. **The first account becomes the admin** (Mom).
+7. You're in. Add Daily Business customers, create chits, etc.
+8. Anyone you give the URL to can sign up too — but they'll be a *customer* who can only see their own data unless you promote them in **Settings → Users (admin)**.
 
 If anything fails, fall back to the long version below.
+
+## Roles in 30 seconds
+
+| Role | Sees | Can edit |
+| --- | --- | --- |
+| **admin** (you) | every row in every table | every row |
+| **customer** | only the rows they created themselves | only their own rows |
+
+The first signup becomes admin automatically (a database trigger handles this). Everyone after that is a customer until an admin promotes them. The promotion control lives in **Settings → Users**, visible only to admins.
+
+This is enforced by Row Level Security in Supabase, not by JavaScript — so even if a customer hand-writes API calls, the database refuses. Mom's chits stay safely Mom's.
 
 ---
 
@@ -118,15 +132,25 @@ To completely reset on this device, click **Disconnect this device** in Settings
 ## App workflow at a glance
 
 ```
-First open ──► Wizard (Part 4)
+First open ──► Setup wizard (URL + key)
+              │
+              ▼
+            Login screen ──► Sign up   (first one = admin)
+                          └─ Sign in   (everyone else)
               │
               ▼
             Home (dashboard)
-              ├──► Customers ──► Add customer ──► Add transaction
-              ├──► Expenses  ──► Add income/expense entry
-              ├──► Loans     ──► New loan ──► Record payments
-              ├──► Reports   ──► Print / Download CSV
-              └──► Settings  ──► Bulk CSV import / Backup / Restore / Theme / Disconnect
+              ├──► Daily Business     ──► Customer ──► Many small transactions (Dad's lending)
+              ├──► Chits              ──► Open chit ──► Members ──► Monthly Lucky Draw 🎲
+              ├──► Household Expenses ──► Add income/expense
+              ├──► Loans              ──► New loan ──► Record payments
+              ├──► Summary Report     ──► Print / Download CSV
+              └──► Settings
+                    ├─ Database connection (URL/key)
+                    ├─ My account (role + sign out)
+                    ├─ Users (admin only) — promote / demote
+                    ├─ Bulk CSV import (per table, with templates)
+                    └─ Backup & Restore (full JSON dump / restore)
 ```
 
-That's the whole app. Six pages, one wizard, one settings screen.
+That's the whole app. Seven pages, two gates (URL/key wizard and login), one settings screen.
